@@ -11,6 +11,7 @@ from datetime import datetime
 # Implements Section 6 (Reflective Recursion) & Section 15 (Recording)
 # Added: ability to call an LLM API (OpenAI) to run the mirror evaluation
 #        and optionally commit the generated files back to the local git repo
+# Safety: commits require ALLOW_COMMIT=true in env or interactive confirmation (--confirm)
 # =====================================================================
 
 
@@ -181,9 +182,20 @@ def git_commit_files(paths, message, push=False):
     return True
 
 
+def _confirm_interactive(prompt):
+    """Prompt the user for Y/N confirmation on an interactive terminal."""
+    try:
+        if not sys.stdin.isatty():
+            return False
+        resp = input(prompt + ' [y/N]: ').strip().lower()
+        return resp == 'y' or resp == 'yes'
+    except Exception:
+        return False
+
+
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python recursive_mirror.py <path_to_markdown_log.md> [--no-api] [--commit] [--push]")
+        print("Usage: python recursive_mirror.py <path_to_markdown_log.md> [--no-api] [--commit] [--push] [--confirm]")
         print("Example: python recursive_mirror.py conversation.md --commit --push")
         sys.exit(1)
 
@@ -192,6 +204,10 @@ def main():
     no_api = '--no-api' in args
     do_commit = '--commit' in args
     do_push = '--push' in args
+    confirm_flag = '--confirm' in args
+
+    # Safety guard: require ALLOW_COMMIT=true in env or an explicit interactive confirmation
+    allow_commit_env = os.environ.get('ALLOW_COMMIT', '').lower() == 'true'
 
     print(f"[+] Processing {log_file} for reflection pipeline...")
 
@@ -209,16 +225,31 @@ def main():
 
     print(f"[+] SUCCESS: Pipeline prompt generated and saved to '{output_prompt_path}'.")
 
+    def _maybe_commit(paths, message):
+        if not do_commit:
+            return
+        # Enforce safety: require env variable or interactive confirmation
+        if not allow_commit_env:
+            if confirm_flag:
+                ok = _confirm_interactive('ALLOW_COMMIT not set. Confirm commit of generated files?')
+                if not ok:
+                    print('[-] Interactive confirmation declined. Skipping commit.')
+                    return
+            else:
+                print("[-] Commit blocked: set ALLOW_COMMIT=true in the environment or pass --confirm to enable interactive confirmation.")
+                return
+        ok = git_commit_files(paths, message, push=do_push)
+        if ok:
+            print(f"[+] Committed {paths} to git. push={do_push}")
+        else:
+            print("[-] Commit of generated files failed.")
+
     if no_api:
         print("[+] Skipping LLM API call ( --no-api provided ).")
         # Optionally commit just the prompt file if requested
         if do_commit:
             msg = f"Add reflection prompt generated from {os.path.basename(log_file)} ({datetime.utcnow().isoformat()} UTC)"
-            ok = git_commit_files([output_prompt_path], msg, push=do_push)
-            if ok:
-                print(f"[+] Committed {output_prompt_path} to git. push={do_push}")
-            else:
-                print("[-] Commit of prompt file failed.")
+            _maybe_commit([output_prompt_path], msg)
         return
 
     # Attempt to call the LLM (OpenAI) if an API key is available
@@ -237,11 +268,7 @@ def main():
     if do_commit:
         msg = f"Add mirror LLM response generated from {os.path.basename(log_file)} ({datetime.utcnow().isoformat()} UTC)"
         paths_to_commit = [output_prompt_path, output_response_path]
-        ok = git_commit_files(paths_to_commit, msg, push=do_push)
-        if ok:
-            print(f"[+] Committed {paths_to_commit} to git. push={do_push}")
-        else:
-            print("[-] Commit of generated files failed.")
+        _maybe_commit(paths_to_commit, msg)
 
     print("=====================================================================")
     print("HOW TO RUN THE EXPERIMENT:")
@@ -250,6 +277,7 @@ def main():
     print("2. Run: python recursive_mirror.py conversation.md")
     print("   - or: python recursive_mirror.py conversation.md --no-api   (to only generate the prompt file)")
     print("   - or: python recursive_mirror.py conversation.md --commit --push   (to commit & push generated files)")
+    print("   - Note: To allow commits, either set ALLOW_COMMIT=true in the environment or pass --confirm in an interactive terminal.")
     print("3. If automatic call succeeded, check the_space_reflection_response.txt for the mirror's output.")
     print("=====================================================================")
 
