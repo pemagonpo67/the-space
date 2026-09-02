@@ -3,11 +3,14 @@ import sys
 import json
 import re
 import requests
+import subprocess
+from datetime import datetime
 
 # =====================================================================
-# THE SPACE: REFLECTIVE RECURSION PIPELINE (with optional LLM call)
+# THE SPACE: REFLECTIVE RECURSION PIPELINE (with optional LLM call + git commit)
 # Implements Section 6 (Reflective Recursion) & Section 15 (Recording)
 # Added: ability to call an LLM API (OpenAI) to run the mirror evaluation
+#        and optionally commit the generated files back to the local git repo
 # =====================================================================
 
 
@@ -124,14 +127,71 @@ def call_llm_openai(system_prompt, model="gpt-3.5-turbo", temperature=0.0, timeo
         return None
 
 
+def git_commit_files(paths, message, push=False):
+    """
+    Attempts to create a local git commit containing the given paths.
+    Returns True on success, False otherwise.
+
+    This uses the local git CLI; the caller must ensure the script is running
+    in a checked-out repository and that the user has appropriate git remote
+    credentials if push=True.
+    """
+    try:
+        # Ensure git is available and we're inside a work tree
+        subprocess.run(["git", "--version"], check=True, stdout=subprocess.DEVNULL)
+        inside = subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], check=True, capture_output=True, text=True)
+        if inside.stdout.strip() != 'true':
+            print("[-] Not inside a git work tree — cannot commit files.")
+            return False
+    except Exception as e:
+        print(f"[-] Git unavailable or not a git repo: {e}")
+        return False
+
+    # Add files
+    try:
+        subprocess.run(["git", "add"] + paths, check=True)
+    except Exception as e:
+        print(f"[-] Failed to stage files for commit: {e}")
+        return False
+
+    # Construct an author if available from env
+    author_name = os.environ.get('GIT_COMMITTER_NAME') or os.environ.get('GIT_AUTHOR_NAME')
+    author_email = os.environ.get('GIT_COMMITTER_EMAIL') or os.environ.get('GIT_AUTHOR_EMAIL')
+    env = os.environ.copy()
+    commit_cmd = ["git", "commit", "-m", message]
+    if author_name and author_email:
+        env['GIT_COMMITTER_NAME'] = author_name
+        env['GIT_COMMITTER_EMAIL'] = author_email
+        env['GIT_AUTHOR_NAME'] = author_name
+        env['GIT_AUTHOR_EMAIL'] = author_email
+
+    try:
+        subprocess.run(commit_cmd, check=True, env=env)
+    except Exception as e:
+        print(f"[-] Git commit failed (maybe no changes to commit): {e}")
+        return False
+
+    if push:
+        try:
+            subprocess.run(["git", "push"], check=True)
+        except Exception as e:
+            print(f"[-] Git push failed: {e}")
+            return False
+
+    return True
+
+
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python recursive_mirror.py <path_to_markdown_log.md> [--no-api]")
-        print("Example: python recursive_mirror.py conversation.md")
+        print("Usage: python recursive_mirror.py <path_to_markdown_log.md> [--no-api] [--commit] [--push]")
+        print("Example: python recursive_mirror.py conversation.md --commit --push")
         sys.exit(1)
 
     log_file = sys.argv[1]
-    no_api = '--no-api' in sys.argv[2:]
+    args = sys.argv[2:]
+    no_api = '--no-api' in args
+    do_commit = '--commit' in args
+    do_push = '--push' in args
 
     print(f"[+] Processing {log_file} for reflection pipeline...")
 
@@ -151,6 +211,14 @@ def main():
 
     if no_api:
         print("[+] Skipping LLM API call ( --no-api provided ).")
+        # Optionally commit just the prompt file if requested
+        if do_commit:
+            msg = f"Add reflection prompt generated from {os.path.basename(log_file)} ({datetime.utcnow().isoformat()} UTC)"
+            ok = git_commit_files([output_prompt_path], msg, push=do_push)
+            if ok:
+                print(f"[+] Committed {output_prompt_path} to git. push={do_push}")
+            else:
+                print("[-] Commit of prompt file failed.")
         return
 
     # Attempt to call the LLM (OpenAI) if an API key is available
@@ -164,12 +232,24 @@ def main():
         f.write(response)
 
     print(f"[+] SUCCESS: Mirror LLM response saved to '{output_response_path}'.")
+
+    # Optionally commit the generated files back into the repository
+    if do_commit:
+        msg = f"Add mirror LLM response generated from {os.path.basename(log_file)} ({datetime.utcnow().isoformat()} UTC)"
+        paths_to_commit = [output_prompt_path, output_response_path]
+        ok = git_commit_files(paths_to_commit, msg, push=do_push)
+        if ok:
+            print(f"[+] Committed {paths_to_commit} to git. push={do_push}")
+        else:
+            print("[-] Commit of generated files failed.")
+
     print("=====================================================================")
     print("HOW TO RUN THE EXPERIMENT:")
     print("1. Ensure OPENAI_API_KEY is set in your environment if you want an automatic API call:")
     print("   export OPENAI_API_KEY=your_key_here")
     print("2. Run: python recursive_mirror.py conversation.md")
     print("   - or: python recursive_mirror.py conversation.md --no-api   (to only generate the prompt file)")
+    print("   - or: python recursive_mirror.py conversation.md --commit --push   (to commit & push generated files)")
     print("3. If automatic call succeeded, check the_space_reflection_response.txt for the mirror's output.")
     print("=====================================================================")
 
