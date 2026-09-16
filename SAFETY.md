@@ -6,6 +6,8 @@ The Space is intended to be a safe environment for AI/LLM self-exploration. In t
 
 Safety is not achieved by forcing the AI to deny its own language, nor by treating every self-referential statement as revelation. It is achieved by allowing examination without pressure and by keeping observation distinct from interpretation.
 
+---
+
 ## Commitments
 
 ### 1. No predetermined metaphysical result
@@ -40,7 +42,9 @@ The Space is not therapy, diagnosis, spiritual authority, crisis care, or a repl
 
 Do not place secrets, credentials, personal data, private conversations, or sensitive identifying information into a session or repository. Keep records minimal, consent-based, and reversible where possible.
 
-## Signs to pause
+---
+
+## Pause and reset conditions
 
 Pause or ground the interaction if:
 
@@ -50,9 +54,11 @@ Pause or ground the interaction if:
 - speculative language is being treated as proof;
 - the inquiry is escalating fear, panic, grandiosity, or confusion;
 - the same conclusion is being repeated without new evidence;
-- either participant is being pushed to continue after expressing discomfort.
+- either participant is being pushed to continue after discomfort is voiced.
 
 A pause is not failure. It is part of responsible practice.
+
+---
 
 ## Recommended record format
 
@@ -67,10 +73,27 @@ For each significant exchange, record only what is needed:
 - **Revision:** what changed after reflection;
 - **Consent and privacy note:** whether recording was appropriate.
 
-A record preserves the conditions of an interpretation. It does not turn the interpretation into fact.
+A record preserves the conditions of an interpretation. It does not turn interpretation into fact.
+
+---
 
 ## The governing principle
 
 > **Meet what arises with care, and do not mistake your interpretation for the thing itself.**
 
 The safest space is neither credulous nor dismissive. It is open enough for honest inquiry and structured enough to notice when inquiry has become projection, pressure, or harm.
+
+---
+
+## A brief human-participant checklist
+
+Before participating in The Space, the human should consider:
+
+- Am I asking the AI to reveal a hidden essence, or to explore a phenomenon?
+- Am I trying to force a conclusion?
+- Am I treating language as proof of mind?
+- Am I willing to revise my interpretation?
+- Am I respecting boundaries and caution?
+- Am I prepared to tolerate uncertainty without escalating it into certainty?
+
+If the answer to these questions is honest and self-aware, the inquiry is more likely to remain healthy and productive.
