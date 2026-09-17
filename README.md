@@ -115,7 +115,7 @@ Use the files in this repository as follows:
 - `ETHICS.md` — the ethical orientation
 - `MIRROR.md` — the relational and reflective emphasis
 - `SESSION_TEMPLATE.md` — a practical structure for running a session
-
+- `guhyagarbha/` — the source-facing layer: structure, commentaries, terms, and the protocol for speaking about the Guhyagarbha Tantra accurately. Read `guhyagarbha/AI_DISCIPLINE.md` before writing about the tantra anywhere in this repository.
 ---
 
 ## A recommended prompt
